@@ -1,15 +1,6 @@
 fridaFlake: { pkgs, lib, config, buildPythonPackage, ... }:
 
 let
-  gnrl-driver-version = "525.105.17";
-	# grid driver and wdys driver aren't actually used, but their versions are needed to find some filenames
-	vgpu-driver-version = "525.105.14";
-	grid-driver-version = "525.105.17";
-	wdys-driver-version = "528.89";
-	grid-version = "15.2";
-  kernel-at-least-6 = versionAtLeast config.boot.kernelPackages.kernel.version "6.0"
-in
-let
   
   # UNCOMMENT this to pin the version of pkgs if this stops working
   #pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/06278c77b5d162e62df170fec307e83f1812d94b.tar.gz") {
@@ -21,7 +12,7 @@ let
   mdevctl = pkgs.callPackage ./mdevctl {};
   frida = fridaFlake.packages.${pkgs.system}.frida-tools;
 
-  myVgpuVersion = "${vgpu-driver-version}";
+  myVgpuVersion = "525.105.14";
   
   # maybe take a look at https://discourse.nixos.org/t/how-to-add-custom-python-package/536/4
   vgpu_unlock = pkgs.python310Packages.buildPythonPackage {
@@ -44,49 +35,6 @@ let
       cp vgpu_unlock $out/bin/
       substituteInPlace $out/bin/vgpu_unlock \
               --replace /bin/bash ${pkgs.bash}/bin/bash
-    '';
-  };
-  compiled-driver = pkgs.stdenv.mkDerivation rec{
-    name = "driver-compile";
-	  nativeBuildInputs = [ pkgs.p7zip pkgs.coreutils];
-	  system = "x86_64-linux";
-	  src = pkgs.fetchFromGitHub {
-	    owner = "VGPU-Community-Drivers";
-	    repo = "vGPU-Unlock-patcher";
-  	  rev = "99684a6d7202e6c0a7eab8b33b649fb02c2f3006";
-	    sha256 = "0g70acrxlhkz8qr2pjk0kaqk3584rv1ych0qdf513gxpvv2i5jqc";
-    };
-	  original = pkgs.fetchurl {
-	    url = "https://download.nvidia.com/XFree86/Linux-x86_64/${gnrl-driver-version}/NVIDIA-Linux-x86_64-${gnrl-driver-version}.run";
-	    sha256 = "0ahlb1x59g7055vdkm4lifb6llsb1x5bdsqrbx4576rc50da4df6";
-    };
-	  zip1 = pkgs.fetchurl {
-	    url = "https://github.com/justin-himself/NVIDIA-VGPU-Driver-Archive/releases/download/${grid-version}/NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.001";
-	    sha256 = "15s85dhifqski3r10wvsfrvbhill7hv2wx1qqbyq1jz1hqjyr4r1";
-    };
-	  zip2 = pkgs.fetchurl {
-	    url = "https://github.com/justin-himself/NVIDIA-VGPU-Driver-Archive/releases/download/${grid-version}/NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.002";
-	    sha256 = "0dsd5bkssw83jyyiqx0sbnrg9qd7cninhjd49a4lq6qdk2y4dgfl";
-    };
-	  zip3 = pkgs.fetchurl {
-	    url = "https://github.com/justin-himself/NVIDIA-VGPU-Driver-Archive/releases/download/${grid-version}/NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.003";
-	    sha256 = "0xixw5h0bmaz8964lzfdfvn184m9f4zmrk2wypqcfv1wpf2ri6pg";
-    };
-	  buildPhase = ''
-      mkdir -p $out
-	    cd $TMPDIR
-      ln -s $zip1 NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.001
-	    ln -s $zip2 NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.002
-	    ln -s $zip3 NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.003
-	    ${pkgs.p7zip}/bin/7z e -y NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.001 NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}/Host_Drivers/NVIDIA-Linux-x86_64-${vgpu-driver-version}-vgpu-kvm.run
-	    cp -a $src/* .
-	    cp -a $original NVIDIA-Linux-x86_64-${gnrl-driver-version}.run
-      if ${kernel-at-least-6}; then
-         sh ./patch.sh --repack --lk6-patches general-merge 
-      else
-         sh ./patch.sh --repack general-merge 
-      fi
-      cp -a NVIDIA-Linux-x86_64-${gnrl-driver-version}-merged-vgpu-kvm-patched.run $out
     '';
   };
 in
@@ -141,11 +89,15 @@ in
       { patches ? [], postUnpack ? "", postPatch ? "", preFixup ? "", ... }@attrs: {
       # Overriding https://github.com/NixOS/nixpkgs/tree/nixos-unstable/pkgs/os-specific/linux/nvidia-x11
       # that gets called from the option hardware.nvidia.package from here: https://github.com/NixOS/nixpkgs/blob/nixos-22.11/nixos/modules/hardware/video/nvidia.nix
-      name = "NVIDIA-Linux-x86_64-${myVgpuVersion}-merged-vgpu-kvm-patched-${config.boot.kernelPackages.kernel.version}";
+      name = "NVIDIA-Linux-x86_64-525.105.17-merged-vgpu-kvm-patched-${config.boot.kernelPackages.kernel.version}";
       version = "${myVgpuVersion}";
 
-      # the new driver (compiled in a derivation above)
-      src = compiled-driver
+      # the new driver (getting from my Google drive)
+      src = pkgs.fetchurl {
+              name = "NVIDIA-Linux-x86_64-525.105.17-merged-vgpu-kvm-patched.run"; # So there can be special characters in the link below: https://github.com/NixOS/nixpkgs/issues/6165#issuecomment-141536009
+              url = "https://drive.google.com/u/1/uc?id=17NN0zZcoj-uY2BELxY2YqGvf6KtZNXhG&export=download&confirm=t&uuid=e2729c36-3bb7-4be6-95b0-08e06eac55ce&at=AKKF8vzPeXmt0W_pxHE9rMqewfXY:1683158182055";
+              sha256 = "sha256-g8BM1g/tYv3G9vTKs581tfSpjB6ynX2+FaIOyFcDfdI=";
+            };
 
       postPatch = if postPatch != null then postPatch + ''
         # Move path for vgpuConfig.xml into /etc
