@@ -6,6 +6,7 @@ let
   vgpu-driver-version = "525.105.14";
   grid-driver-version = "525.105.17";
   wdys-driver-version = "528.89";
+  frankenstein-vgpu-driver-version = gnrl-driver-version;
   grid-version = "15.2";
   kernel-at-least-6 = if lib.strings.versionAtLeast config.boot.kernelPackages.kernel.version "6.0" then "true" else "false";
 in
@@ -144,7 +145,7 @@ in
 
       # HACK: Using preFixup instead of postInstall since nvidia-x11 builder.sh doesn't support hooks
       preFixup = preFixup + ''
-        for i in libnvidia-vgpu.so.${vgpu-driver-version} libnvidia-vgxcfg.so.${vgpu-driver-version}; do
+        for i in libnvidia-vgpu.so.${frankenstein-vgpu-driver-version} libnvidia-vgxcfg.so.${frankenstein-vgpu-driver-version}; do
           install -Dm755 "$i" "$out/lib/$i"
         done
         patchelf --set-rpath ${pkgs.stdenv.cc.cc.lib}/lib $out/lib/libnvidia-vgpu.so.${vgpu-driver-version}
