@@ -148,7 +148,7 @@ in
         for i in libnvidia-vgpu.so.${frankenstein-vgpu-driver-version} libnvidia-vgxcfg.so.${frankenstein-vgpu-driver-version}; do
           install -Dm755 "$i" "$out/lib/$i"
         done
-        patchelf --set-rpath ${pkgs.stdenv.cc.cc.lib}/lib $out/lib/libnvidia-vgpu.so.${vgpu-driver-version}
+        patchelf --set-rpath ${pkgs.stdenv.cc.cc.lib}/lib $out/lib/libnvidia-vgpu.so.${frankenstein-vgpu-driver-version}
         install -Dm644 vgpuConfig.xml $out/vgpuConfig.xml
 
         for i in nvidia-vgpud nvidia-vgpu-mgr; do
