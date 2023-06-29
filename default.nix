@@ -1,7 +1,7 @@
 { pkgs, lib, config, ... }:
 
 let
-  gnrl-driver-version = "525.105.17";
+  gnrl-driver-version = "530.41.03";
   # grid driver and wdys driver aren't actually used, but their versions are needed to find some filenames
   vgpu-driver-version = "525.105.14";
   grid-driver-version = "525.105.17";
@@ -22,18 +22,18 @@ let
 
   compiled-driver = pkgs.stdenv.mkDerivation rec{
     name = "driver-compile";
-      nativeBuildInputs = [ pkgs.p7zip pkgs.coreutils];
+      nativeBuildInputs = [ pkgs.p7zip pkgs.coreutils pkgs.which pkgs.patchelf pkgs.zstd ];
         system = "x86_64-linux";
         src = pkgs.fetchFromGitHub {
           owner = "VGPU-Community-Drivers";
           repo = "vGPU-Unlock-patcher";
-          rev = "99684a6d7202e6c0a7eab8b33b649fb02c2f3006";
-          sha256 = "1x6pd87xnbx3rqbhy7bzhwvgcix3n6gl5h4yl259di650r0pnj61";
+          rev = "d8f4dfcafe2b678fe7f6a2c30088320be327988f";
+          sha256 = "0sknir82zm6j8p6lx7532l4q2g2yawjzh1221a29q05l4vawq554";
           fetchSubmodules = true;
         };
         original = pkgs.fetchurl {
           url = "https://download.nvidia.com/XFree86/Linux-x86_64/${gnrl-driver-version}/NVIDIA-Linux-x86_64-${gnrl-driver-version}.run";
-          sha256 = "0ahlb1x59g7055vdkm4lifb6llsb1x5bdsqrbx4576rc50da4df6";
+          sha256 = "1cc4nyna0bifz4aywjjz08mn20hn7hsdl78nblzm11ccjrma29xf";
         };
         zip1 = pkgs.fetchurl {
           url = "https://github.com/justin-himself/NVIDIA-VGPU-Driver-Archive/releases/download/${grid-version}/NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.001";
