@@ -264,8 +264,8 @@ in
             recreate_public
             recreate_certs
             CERT_CHANGED=true
-          fi
-          if [! -e $WORKING_DIR/webserver.key ] || [! -e $WORKING_DIR/webserver.crt ]; then
+          fi 
+          if !{ [ -e $WORKING_DIR/webserver.key ] && [ -e $WORKING_DIR/webserver.crt ]; }; then
             recreate_certs
             CERT_CHANGED=true
           fi
