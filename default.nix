@@ -88,7 +88,7 @@ in
               type = lib.types.str;
             };
             local_ipv4 = lib.mkOption {
-              description = "Your ipv4 or local hostname (e.g. user.local), needed for the fastapi-dls server. Leave blank to autodetect using hostname";
+              description = "Your ipv4 or local hostname, needed for the fastapi-dls server. Leave blank to autodetect using hostname";
               default = "";
               example = "192.168.1.81";
               type = lib.types.str;
