@@ -236,6 +236,7 @@ in
       };
 
       systemd.services.fastapi-dls-mgr = {
+        path = [ pkgs.openssl ];
         script = ''
         WORKING_DIR=${cfg.fastapi-dls.docker-directory}/fastapi-dls/cert
         CERT_CHANGED=false
