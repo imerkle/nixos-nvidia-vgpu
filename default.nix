@@ -11,7 +11,6 @@ let
   kernel-at-least-6 = if lib.strings.versionAtLeast config.boot.kernelPackages.kernel.version "6.0" then "true" else "false";
 in
 let
-  
   # UNCOMMENT this to pin the version of pkgs if this stops working
   #pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/06278c77b5d162e62df170fec307e83f1812d94b.tar.gz") {
   #    # config.allowUnfree = true;
@@ -88,12 +87,14 @@ in
               type = lib.types.str;
             };
             local_ipv4 = lib.mkOption {
-              description = "your ipv4, needed for the fastapi-dls server";
+              description = "Your ipv4 or local hostname, needed for the fastapi-dls server. Leave blank to autodetect using hostname";
+              default = "";
               example = "192.168.1.81";
               type = lib.types.str;
             };
             timezone = lib.mkOption {
-              description = "your timezone according to this list: https://docs.diladele.com/docker/timezones.html, needs to be the same as in the VM, needed for the fastapi-dls server";
+              description = "Your timezone according to this list: https://docs.diladele.com/docker/timezones.html, needs to be the same as in the VM. Leave blank to autodetect";
+              default = "";
               example = "Europe/Lisbon";
               type = lib.types.str;
             };
@@ -198,20 +199,6 @@ in
   })
 
     (lib.mkIf cfg.fastapi-dls.enable {
-
-      # fastapi-dls docker service, need to run this code before running the module
-      /*
-      WORKING_DIR=/opt/docker/fastapi-dls/cert
-
-      sudo mkdir -p /opt/docker/fastapi-dls/cert
-      mkdir -p $WORKING_DIR
-      cd $WORKING_DIR
-      # create instance private and public key for singing JWT's
-      openssl genrsa -out $WORKING_DIR/instance.private.pem 2048 
-      openssl rsa -in $WORKING_DIR/instance.private.pem -outform PEM -pubout -out $WORKING_DIR/instance.public.pem
-      # create ssl certificate for integrated webserver (uvicorn) - because clients rely on ssl
-      openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout  $WORKING_DIR/webserver.key -out $WORKING_DIR/webserver.crt
-      */
       virtualisation.oci-containers.containers = {
         fastapi-dls = {
           image = "collinwebdesigns/fastapi-dls:latest";
@@ -221,8 +208,8 @@ in
           ];
           # Set environment variables
           environment = {
-            TZ = "${cfg.fastapi-dls.timezone}";
-            DLS_URL = "${cfg.fastapi-dls.local_ipv4}"; # this should grab your hostname or your IP!
+            TZ = if cfg.fastapi-dls.timezone == "" then config.time.timeZone else "${cfg.fastapi-dls.timezone}";
+            DLS_URL = if cfg.fastapi-dls.local_ipv4 == "" then config.networking.hostName else "${cfg.fastapi-dls.local_ipv4}";
             DLS_PORT = "443";
             LEASE_EXPIRE_DAYS="90";
             DATABASE = "sqlite:////app/database/db.sqlite";
@@ -232,33 +219,76 @@ in
           ];
           # Publish the container's port to the host
           ports = [ "443:443" ];
-          # Automatically start the container
-          autoStart = true;
+          # Do not automatically start the container, it will be managed
+          autoStart = false;
+        };
+      };
+
+      systemd.timers.fastapi-dls-mgr = {
+        wantedBy = [ "multi-user.target" ];
+        timerConfig = {
+          OnActiveSec = "1s";
+          OnUnitActiveSec = "1h";
+          AccuracySec = "1s";
+          Unit = "fastapi-dls-mgr.service";
+        };
+      };
+
+      systemd.services.fastapi-dls-mgr = {
+        path = [ pkgs.openssl ];
+        script = ''
+        WORKING_DIR=${cfg.fastapi-dls.docker-directory}/fastapi-dls/cert
+        CERT_CHANGED=false
+        recreate_private () {
+          rm -f $WORKING_DIR/instance.private.pem
+          openssl genrsa -out $WORKING_DIR/instance.private.pem 2048
+        }
+        recreate_public () {
+          rm -f $WORKING_DIR/instance.public.pem
+          openssl rsa -in $WORKING_DIR/instance.private.pem -outform PEM -pubout -out $WORKING_DIR/instance.public.pem
+        }
+        recreate_certs () {
+          rm -f $WORKING_DIR/webserver.key
+          rm -f $WORKING_DIR/webserver.crt 
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout $WORKING_DIR/webserver.key -out $WORKING_DIR/webserver.crt -subj "/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=CommonNameOrHostname"
+        }
+        check_recreate() {
+          if [ ! -e $WORKING_DIR/instance.private.pem ]; then
+            recreate_private
+            recreate_public
+            recreate_certs
+            CERT_CHANGED=true
+          fi
+          if [ ! -e $WORKING_DIR/instance.public.pem ]; then
+            recreate_public
+            recreate_certs
+            CERT_CHANGED=true
+          fi 
+          if [ ! -e $WORKING_DIR/webserver.key ] || [ ! -e $WORKING_DIR/webserver.crt ]; then
+            recreate_certs
+            CERT_CHANGED=true
+          fi
+          if ( ! openssl x509 -checkend 864000 -noout -in $WORKING_DIR/webserver.crt); then
+            recreate_certs
+            CERT_CHANGED=true
+          fi
+        }
+        if [ ! -d $WORKING_DIR ]; then
+          mkdir -p $WORKING_DIR
+        fi
+        check_recreate
+        if ( ! systemctl is-active --quiet docker-fastapi-dls.service ); then
+          systemctl start podman-fastapi-dls.service
+        elif $CERT_CHANGED; then
+          systemctl stop podman-fastapi-dls.service
+          systemctl start podman-fastapi-dls.service
+        fi
+        '';
+        serviceConfig = {
+          Type = "oneshot";
+          User = "root";
         };
       };
     })
-
-    /* Something you can do to automate getting the your local IP:
-      https://discourse.nixos.org/t/for-nixos-on-aws-ec2-how-to-get-ip-address/15616/12?u=yeshey
-
-      With something like:
-        environmentFiles = lib.mkOption {
-          description = "enviroonmentFiles for docker";
-          default = [];
-          example = ["/my-ip"];
-          type = lib.arr lib.types.path;
-        };
-
-      systemd.services.my-awesome-service = {
-        description = "writes a file to /my-ip";
-        serviceConfig.PassEnvironment = "DISPLAY";
-        script = ''
-          echo "DLS_URL=$(${pkgs.busybox}/bin/ip a | grep "scope" | grep -Po '(?<=inet )[\d.]+' | head -n 2 | tail -n 1)" > /my-ip;
-          echo "success!"
-        '';
-        wantedBy = [ "multi-user.target" ]; # starts after login
-      };
-     */
-
   ];
 }
