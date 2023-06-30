@@ -1,6 +1,15 @@
 fridaFlake: { pkgs, lib, config, buildPythonPackage, ... }:
 
 let
+  gnrl-driver-version = "525.105.17";
+	# grid driver and wdys driver aren't actually used, but their versions are needed to find some filenames
+	vgpu-driver-version = "525.105.14";
+	grid-driver-version = "525.105.17";
+	wdys-driver-version = "528.89";
+	grid-version = "15.2";
+  kernel-at-least-6 = versionAtLeast config.boot.kernelPackages.kernel.version "6.0"
+in
+let
   
   # UNCOMMENT this to pin the version of pkgs if this stops working
   #pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/06278c77b5d162e62df170fec307e83f1812d94b.tar.gz") {
@@ -12,7 +21,7 @@ let
   mdevctl = pkgs.callPackage ./mdevctl {};
   frida = fridaFlake.packages.${pkgs.system}.frida-tools;
 
-  myVgpuVersion = "525.105.14";
+  myVgpuVersion = "${vgpu-driver-version}";
   
   # maybe take a look at https://discourse.nixos.org/t/how-to-add-custom-python-package/536/4
   vgpu_unlock = pkgs.python310Packages.buildPythonPackage {
@@ -35,6 +44,49 @@ let
       cp vgpu_unlock $out/bin/
       substituteInPlace $out/bin/vgpu_unlock \
               --replace /bin/bash ${pkgs.bash}/bin/bash
+    '';
+  };
+  compiled-driver = pkgs.stdenv.mkDerivation rec{
+    name = "driver-compile";
+	  nativeBuildInputs = [ pkgs.p7zip pkgs.coreutils];
+	  system = "x86_64-linux";
+	  src = pkgs.fetchFromGitHub {
+	    owner = "VGPU-Community-Drivers";
+	    repo = "vGPU-Unlock-patcher";
+  	  rev = "99684a6d7202e6c0a7eab8b33b649fb02c2f3006";
+	    sha256 = "0g70acrxlhkz8qr2pjk0kaqk3584rv1ych0qdf513gxpvv2i5jqc";
+    };
+	  original = pkgs.fetchurl {
+	    url = "https://download.nvidia.com/XFree86/Linux-x86_64/${gnrl-driver-version}/NVIDIA-Linux-x86_64-${gnrl-driver-version}.run";
+	    sha256 = "0ahlb1x59g7055vdkm4lifb6llsb1x5bdsqrbx4576rc50da4df6";
+    };
+	  zip1 = pkgs.fetchurl {
+	    url = "https://github.com/justin-himself/NVIDIA-VGPU-Driver-Archive/releases/download/${grid-version}/NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.001";
+	    sha256 = "15s85dhifqski3r10wvsfrvbhill7hv2wx1qqbyq1jz1hqjyr4r1";
+    };
+	  zip2 = pkgs.fetchurl {
+	    url = "https://github.com/justin-himself/NVIDIA-VGPU-Driver-Archive/releases/download/${grid-version}/NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.002";
+	    sha256 = "0dsd5bkssw83jyyiqx0sbnrg9qd7cninhjd49a4lq6qdk2y4dgfl";
+    };
+	  zip3 = pkgs.fetchurl {
+	    url = "https://github.com/justin-himself/NVIDIA-VGPU-Driver-Archive/releases/download/${grid-version}/NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.003";
+	    sha256 = "0xixw5h0bmaz8964lzfdfvn184m9f4zmrk2wypqcfv1wpf2ri6pg";
+    };
+	  buildPhase = ''
+      mkdir -p $out
+	    cd $TMPDIR
+      ln -s $zip1 NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.001
+	    ln -s $zip2 NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.002
+	    ln -s $zip3 NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.003
+	    ${pkgs.p7zip}/bin/7z e -y NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}.7z.001 NVIDIA-GRID-Linux-KVM-${vgpu-driver-version}-${grid-driver-version}-${wdys-driver-version}/Host_Drivers/NVIDIA-Linux-x86_64-${vgpu-driver-version}-vgpu-kvm.run
+	    cp -a $src/* .
+	    cp -a $original NVIDIA-Linux-x86_64-${gnrl-driver-version}.run
+      if ${kernel-at-least-6}; then
+         sh ./patch.sh --repack --lk6-patches general-merge 
+      else
+         sh ./patch.sh --repack general-merge 
+      fi
+      cp -a NVIDIA-Linux-x86_64-${gnrl-driver-version}-merged-vgpu-kvm-patched.run $out
     '';
   };
 in
@@ -61,17 +113,19 @@ in
             };
             docker-directory = lib.mkOption {
               description = "Path to your folder with docker containers";
-              default = /opt/docker;
-              example = /dockers;
-              type = lib.types.path;
+              default = "/opt/docker";
+              example = "/dockers";
+              type = lib.types.str;
             };
             local_ipv4 = lib.mkOption {
-              description = "your ipv4, needed for the fastapi-dls server";
+              description = "Your ipv4 or local hostname (e.g. user.local), needed for the fastapi-dls server. Leave blank to autodetect using hostname";
+              default = null;
               example = "192.168.1.81";
               type = lib.types.str;
             };
             timezone = lib.mkOption {
-              description = "your timezone according to this list: https://docs.diladele.com/docker/timezones.html, needs to be the same as in the VM, needed for the fastapi-dls server";
+              description = "Your timezone according to this list: https://docs.diladele.com/docker/timezones.html, needs to be the same as in the VM. Leave blank to autodetect";
+              default = null;
               example = "Europe/Lisbon";
               type = lib.types.str;
             };
@@ -89,15 +143,11 @@ in
       { patches ? [], postUnpack ? "", postPatch ? "", preFixup ? "", ... }@attrs: {
       # Overriding https://github.com/NixOS/nixpkgs/tree/nixos-unstable/pkgs/os-specific/linux/nvidia-x11
       # that gets called from the option hardware.nvidia.package from here: https://github.com/NixOS/nixpkgs/blob/nixos-22.11/nixos/modules/hardware/video/nvidia.nix
-      name = "NVIDIA-Linux-x86_64-525.105.17-merged-vgpu-kvm-patched-${config.boot.kernelPackages.kernel.version}";
+      name = "NVIDIA-Linux-x86_64-${myVgpuVersion}-merged-vgpu-kvm-patched-${config.boot.kernelPackages.kernel.version}";
       version = "${myVgpuVersion}";
 
-      # the new driver (getting from my Google drive)
-      src = pkgs.fetchurl {
-              name = "NVIDIA-Linux-x86_64-525.105.17-merged-vgpu-kvm-patched.run"; # So there can be special characters in the link below: https://github.com/NixOS/nixpkgs/issues/6165#issuecomment-141536009
-              url = "https://drive.google.com/u/1/uc?id=17NN0zZcoj-uY2BELxY2YqGvf6KtZNXhG&export=download&confirm=t&uuid=e2729c36-3bb7-4be6-95b0-08e06eac55ce&at=AKKF8vzPeXmt0W_pxHE9rMqewfXY:1683158182055";
-              sha256 = "sha256-g8BM1g/tYv3G9vTKs581tfSpjB6ynX2+FaIOyFcDfdI=";
-            };
+      # the new driver (compiled in a derivation above)
+      src = compiled-driver
 
       postPatch = if postPatch != null then postPatch + ''
         # Move path for vgpuConfig.xml into /etc
@@ -188,20 +238,6 @@ in
   })
 
     (lib.mkIf cfg.fastapi-dls.enable {
-
-      # fastapi-dls docker service, need to run this code before running the module
-      /*
-      WORKING_DIR=/opt/docker/fastapi-dls/cert
-
-      sudo mkdir -p /opt/docker/fastapi-dls/cert
-      mkdir -p $WORKING_DIR
-      cd $WORKING_DIR
-      # create instance private and public key for singing JWT's
-      openssl genrsa -out $WORKING_DIR/instance.private.pem 2048 
-      openssl rsa -in $WORKING_DIR/instance.private.pem -outform PEM -pubout -out $WORKING_DIR/instance.public.pem
-      # create ssl certificate for integrated webserver (uvicorn) - because clients rely on ssl
-      openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout  $WORKING_DIR/webserver.key -out $WORKING_DIR/webserver.crt
-      */
       virtualisation.oci-containers.containers = {
         fastapi-dls = {
           image = "collinwebdesigns/fastapi-dls:latest";
@@ -211,8 +247,8 @@ in
           ];
           # Set environment variables
           environment = {
-            TZ = "${cfg.fastapi-dls.timezone}";
-            DLS_URL = "${cfg.fastapi-dls.local_ipv4}"; # this should grab your hostname or your IP!
+            TZ = if cfg.fastapi-dls.timezone == null then config.time.timeZone else "${cfg.fastapi-dls.timezone}";
+            DLS_URL = if cfg.fastapi-dls.local_ipv4 == null then config.networking.hostName else "${cfg.fastapi-dls.local_ipv4}"
             DLS_PORT = "443";
             LEASE_EXPIRE_DAYS="90";
             DATABASE = "sqlite:////app/database/db.sqlite";
@@ -222,33 +258,75 @@ in
           ];
           # Publish the container's port to the host
           ports = [ "443:443" ];
-          # Automatically start the container
-          autoStart = true;
+          # Do not automatically start the container, it will be managed
+          autoStart = false;
+        };
+      };
+
+      systemd.timers.fastapi-dls-mgr = {
+        wantedBy = [ "multi-user.target" ];
+          timerConfig = {
+            OnActiveSec = "1s";
+            OnUnitActiveSec = "1h";
+      	  AccuracySec = "1s"
+            Unit = "fastapi-dls-mgr.service";
+          };
+      };
+
+      systemd.services.fastapi-dls-mgr = {
+        script = ''
+        WORKING_DIR=${cfg.fastapi-dls.docker-directory}/fastapi-dls/cert
+        CERT_CHANGED=false
+        recreate_private () {
+          rm -f $WORKING_DIR/instance.private.pem
+          openssl genrsa -out $WORKING_DIR/instance.private.pem 2048
+        }
+        recreate_public () {
+          rm -f $WORKING_DIR/instance.public.pem
+          openssl rsa -in $WORKING_DIR/instance.private.pem -outform PEM -pubout -out $WORKING_DIR/instance.public.pem
+        }
+        recreate_certs () {
+          rm -f $WORKING_DIR/webserver.key
+          rm -f $WORKING_DIR/webserver.crt 
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout $WORKING_DIR/webserver.key -out $WORKING_DIR/webserver.crt -subj "/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=CommonNameOrHostname"
+        }
+        check_recreate() {
+          if [! -e $WORKING_DIR/instance.private.pem ]; then
+            recreate_private
+            recreate_public
+            recreate_certs
+            CERT_CHANGED=true
+          fi
+          if [! -e $WORKING_DIR/instance.public.pem ]; then
+            recreate_public
+            recreate_certs
+            CERT_CHANGED=true
+          fi
+          if [! -e $WORKING_DIR/webserver.key ] || [! -e $WORKING_DIR/webserver.crt ]; then
+            recreate_certs
+            CERT_CHANGED=true
+          fi
+          if (openssl x509 -checkend 864000 -noout -in $WORKING_DIR/webserver.crt); then
+            recreate_certs
+            CERT_CHANGED=true
+          fi
+        }
+        if ![ -d $WORKING_DIR ]; then
+          mkdir -p $WORKING_DIR
+        fi
+        check_recreate
+        if (! systemctl is-active --quiet docker-fastapi-dls.service); then
+          systemctl start docker-fastapi-dls.service
+        elif $CERT_CHANGED; then
+          systemctl stop docker-fastapi-dls.service
+          systemctl start docker-fastapi-dls.service
+        fi
+        '';
+        serviceConfig = {
+          Type = "oneshot";
+          User = "root";
         };
       };
     })
-
-    /* Something you can do to automate getting the your local IP:
-      https://discourse.nixos.org/t/for-nixos-on-aws-ec2-how-to-get-ip-address/15616/12?u=yeshey
-
-      With something like:
-        environmentFiles = lib.mkOption {
-          description = "enviroonmentFiles for docker";
-          default = [];
-          example = ["/my-ip"];
-          type = lib.arr lib.types.path;
-        };
-
-      systemd.services.my-awesome-service = {
-        description = "writes a file to /my-ip";
-        serviceConfig.PassEnvironment = "DISPLAY";
-        script = ''
-          echo "DLS_URL=$(${pkgs.busybox}/bin/ip a | grep "scope" | grep -Po '(?<=inet )[\d.]+' | head -n 2 | tail -n 1)" > /my-ip;
-          echo "success!"
-        '';
-        wantedBy = [ "multi-user.target" ]; # starts after login
-      };
-     */
-
   ];
 }
