@@ -254,18 +254,18 @@ in
           openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout $WORKING_DIR/webserver.key -out $WORKING_DIR/webserver.crt -subj "/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=CommonNameOrHostname"
         }
         check_recreate() {
-          if [! -e $WORKING_DIR/instance.private.pem ]; then
+          if [ ! -e $WORKING_DIR/instance.private.pem ]; then
             recreate_private
             recreate_public
             recreate_certs
             CERT_CHANGED=true
           fi
-          if [! -e $WORKING_DIR/instance.public.pem ]; then
+          if [ ! -e $WORKING_DIR/instance.public.pem ]; then
             recreate_public
             recreate_certs
             CERT_CHANGED=true
           fi 
-          if !{ [ -e $WORKING_DIR/webserver.key ] && [ -e $WORKING_DIR/webserver.crt ]; }; then
+          if [ ! -e $WORKING_DIR/webserver.key ] || [ ! -e $WORKING_DIR/webserver.crt ]; then
             recreate_certs
             CERT_CHANGED=true
           fi
@@ -274,11 +274,11 @@ in
             CERT_CHANGED=true
           fi
         }
-        if ![ -d $WORKING_DIR ]; then
+        if [ ! -d $WORKING_DIR ]; then
           mkdir -p $WORKING_DIR
         fi
         check_recreate
-        if (! systemctl is-active --quiet docker-fastapi-dls.service); then
+        if ( ! systemctl is-active --quiet docker-fastapi-dls.service ); then
           systemctl start docker-fastapi-dls.service
         elif $CERT_CHANGED; then
           systemctl stop docker-fastapi-dls.service
