@@ -89,13 +89,13 @@ in
             };
             local_ipv4 = lib.mkOption {
               description = "Your ipv4 or local hostname (e.g. user.local), needed for the fastapi-dls server. Leave blank to autodetect using hostname";
-              default = null;
+              default = "";
               example = "192.168.1.81";
               type = lib.types.str;
             };
             timezone = lib.mkOption {
               description = "Your timezone according to this list: https://docs.diladele.com/docker/timezones.html, needs to be the same as in the VM. Leave blank to autodetect";
-              default = null;
+              default = "";
               example = "Europe/Lisbon";
               type = lib.types.str;
             };
@@ -209,8 +209,8 @@ in
           ];
           # Set environment variables
           environment = {
-            TZ = if cfg.fastapi-dls.timezone == null then config.time.timeZone else "${cfg.fastapi-dls.timezone}";
-            DLS_URL = if cfg.fastapi-dls.local_ipv4 == null then config.networking.hostName else "${cfg.fastapi-dls.local_ipv4}";
+            TZ = if cfg.fastapi-dls.timezone == "" then config.time.timeZone else "${cfg.fastapi-dls.timezone}";
+            DLS_URL = if cfg.fastapi-dls.local_ipv4 == "" then config.networking.hostName else "${cfg.fastapi-dls.local_ipv4}";
             DLS_PORT = "443";
             LEASE_EXPIRE_DAYS="90";
             DATABASE = "sqlite:////app/database/db.sqlite";
