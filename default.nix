@@ -227,12 +227,12 @@ in
 
       systemd.timers.fastapi-dls-mgr = {
         wantedBy = [ "multi-user.target" ];
-          timerConfig = {
-            OnActiveSec = "1s";
-            OnUnitActiveSec = "1h";
-      	  AccuracySec = "1s"
-            Unit = "fastapi-dls-mgr.service";
-          };
+        timerConfig = {
+          OnActiveSec = "1s";
+          OnUnitActiveSec = "1h";
+          AccuracySec = "1s";
+          Unit = "fastapi-dls-mgr.service";
+        };
       };
 
       systemd.services.fastapi-dls-mgr = {
