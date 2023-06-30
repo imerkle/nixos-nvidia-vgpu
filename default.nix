@@ -210,7 +210,7 @@ in
           # Set environment variables
           environment = {
             TZ = if cfg.fastapi-dls.timezone == null then config.time.timeZone else "${cfg.fastapi-dls.timezone}";
-            DLS_URL = if cfg.fastapi-dls.local_ipv4 == null then config.networking.hostName else "${cfg.fastapi-dls.local_ipv4}"
+            DLS_URL = if cfg.fastapi-dls.local_ipv4 == null then config.networking.hostName else "${cfg.fastapi-dls.local_ipv4}";
             DLS_PORT = "443";
             LEASE_EXPIRE_DAYS="90";
             DATABASE = "sqlite:////app/database/db.sqlite";
