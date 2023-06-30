@@ -269,7 +269,7 @@ in
             recreate_certs
             CERT_CHANGED=true
           fi
-          if (openssl x509 -checkend 864000 -noout -in $WORKING_DIR/webserver.crt); then
+          if ( ! openssl x509 -checkend 864000 -noout -in $WORKING_DIR/webserver.crt); then
             recreate_certs
             CERT_CHANGED=true
           fi
