@@ -279,10 +279,10 @@ in
         fi
         check_recreate
         if ( ! systemctl is-active --quiet docker-fastapi-dls.service ); then
-          systemctl start docker-fastapi-dls.service
+          systemctl start podman-fastapi-dls.service
         elif $CERT_CHANGED; then
-          systemctl stop docker-fastapi-dls.service
-          systemctl start docker-fastapi-dls.service
+          systemctl stop podman-fastapi-dls.service
+          systemctl start podman-fastapi-dls.service
         fi
         '';
         serviceConfig = {
