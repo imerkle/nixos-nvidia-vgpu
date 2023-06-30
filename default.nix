@@ -201,7 +201,12 @@ in
     (lib.mkIf cfg.fastapi-dls.enable {
       virtualisation.oci-containers.containers = {
         fastapi-dls = {
-          image = "collinwebdesigns/fastapi-dls:latest";
+          image = "collinwebdesigns/fastapi-dls";
+          imageFile = pkgs.dockerTools.pullImage {
+            imageName = "collinwebdesigns/fastapi-dls";
+            imageDigest = "sha256:6fa90ce552c4e9ecff9502604a4fd42b3e67f52215eb6d8de03a5c3d20cd03d1";
+            sha256 = "1y642miaqaxxz3z8zkknk0xlvzxcbi7q7ylilnxhxfcfr7x7kfqa";
+          };
           volumes = [
             "${cfg.fastapi-dls.docker-directory}/fastapi-dls/cert:/app/cert:rw"
             "dls-db:/app/database"
