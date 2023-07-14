@@ -119,7 +119,13 @@ in
       src = "${compiled-driver}/NVIDIA-Linux-x86_64-${gnrl-driver-version}-merged-vgpu-kvm-patched.run";
 
       ibtSupport = true;
-      patches = null;
+      patches = [
+      # source: https://gist.github.com/joanbm/77f0650d45747b9a4dc8e330ade2bf5c
+        (fetchpatch {
+          url = "https://gist.github.com/joanbm/77f0650d45747b9a4dc8e330ade2bf5c/raw/688b612624945926676de28059fe749203b4b549/nvidia-470xx-fix-linux-6.4.patch";
+          hash = "sha256-OyRmezyzqAi7mSJHDjsWQVocSsgJPTW5DvHDFVNX7Dk=";
+        });
+      ];
 
       postPatch = if postPatch != null then postPatch + ''
         # Move path for vgpuConfig.xml into /etc
