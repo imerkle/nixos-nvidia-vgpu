@@ -27,7 +27,7 @@ let
           owner = "imerkle";
           repo = "vGPU-Unlock-patcher";
           rev = "11b75d69a0a0273650e08cefb85d0045e0bc135f";
-          sha256 = "0qcwn9yx0rd7zksmq1blp5rjzhlzci1rs0bifpsa9ly0rh3xdh75";
+          sha256 = "";
           fetchSubmodules = true;
         };
         original = pkgs.fetchurl {
