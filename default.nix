@@ -168,7 +168,8 @@ in
         Type = "forking";
         ExecStart = "${lib.getBin config.hardware.nvidia.package}/bin/nvidia-vgpud";
         ExecStopPost = "${pkgs.coreutils}/bin/rm -rf /var/run/nvidia-vgpud";
-        Environment = [ "__RM_NO_VERSION_CHECK=1" ]; # Avoids issue with API version incompatibility when merging host/client drivers
+        Environment = [ "__RM_NO_VERSION_CHECK=1" "LD_PRELOAD=/home/slim/vgpu_unlock-rs/target/release/libvgpu_unlock_rs.so" ]; # Avoids issue with API version incompatibility when merging host/client drivers
+        #Environment = [  ]; # Avoids issue with API version incompatibility when merging host/client drivers        
       };
     };
 
@@ -182,7 +183,7 @@ in
         KillMode = "process";
         ExecStart = "${lib.getBin config.hardware.nvidia.package}/bin/nvidia-vgpu-mgr";
         ExecStopPost = "${pkgs.coreutils}/bin/rm -rf /var/run/nvidia-vgpu-mgr";
-        Environment = [ "__RM_NO_VERSION_CHECK=1"];
+        Environment = [ "__RM_NO_VERSION_CHECK=1" "LD_PRELOAD=/home/slim/vgpu_unlock-rs/target/release/libvgpu_unlock_rs.so" ];
       };
     };
 
