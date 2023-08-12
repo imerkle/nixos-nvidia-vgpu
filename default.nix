@@ -148,7 +148,7 @@ in
         done
         patchelf --set-rpath ${pkgs.stdenv.cc.cc.lib}/lib $out/lib/libnvidia-vgpu.so.${vgpu-driver-version}
         install -Dm644 vgpuConfig.xml $out/vgpuConfig.xml
-
+        sed -i 's/<frame_rate_limiter>1<\/frame_rate_limiter>/<frame_rate_limiter>0<\/frame_rate_limiter>/g' $out/vgpuConfig.xml
         for i in nvidia-vgpud nvidia-vgpu-mgr; do
           install -Dm755 "$i" "$bin/bin/$i"
           # stdenv.cc.cc.lib is for libstdc++.so needed by nvidia-vgpud
