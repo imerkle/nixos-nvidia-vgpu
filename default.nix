@@ -187,7 +187,7 @@ in
       };
     };
     environment.sessionVariables = rec {
-      LD_LIBRARY_PATH="${lib.getBin config.hardware.nvidia.package}/bin:$LD_LIBRARY_PATH";
+      LD_LIBRARY_PATH="${lib.getLib config.hardware.nvidia.package}/lib";
     };
     environment.etc."nvidia-vgpu-xxxxx/vgpuConfig.xml".source = config.hardware.nvidia.package + /vgpuConfig.xml;
 
