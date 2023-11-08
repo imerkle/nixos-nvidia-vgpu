@@ -183,10 +183,12 @@ in
         KillMode = "process";
         ExecStart = "${lib.getBin config.hardware.nvidia.package}/bin/nvidia-vgpu-mgr";
         ExecStopPost = "${pkgs.coreutils}/bin/rm -rf /var/run/nvidia-vgpu-mgr";
-        Environment = [ "LD_LIBRARY_PATH=${lib.getBin config.hardware.nvidia.package}/bin:$LD_LIBRARY_PATH" "__RM_NO_VERSION_CHECK=1" "\"LD_PRELOAD=/home/slim/vgpu_unlock-rs/target/release/libvgpu_unlock_rs.so\"" ];
+        Environment = ["__RM_NO_VERSION_CHECK=1" "\"LD_PRELOAD=/home/slim/vgpu_unlock-rs/target/release/libvgpu_unlock_rs.so\"" ];
       };
     };
-
+    environment.sessionVariables = rec {
+      LD_LIBRARY_PATH="${lib.getBin config.hardware.nvidia.package}/bin:${LD_LIBRARY_PATH}";
+    }    
     environment.etc."nvidia-vgpu-xxxxx/vgpuConfig.xml".source = config.hardware.nvidia.package + /vgpuConfig.xml;
 
     boot.kernelModules = [ "nvidia-vgpu-vfio" ];
